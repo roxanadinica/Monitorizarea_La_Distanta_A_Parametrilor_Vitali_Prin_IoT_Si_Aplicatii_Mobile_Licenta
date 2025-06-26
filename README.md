@@ -1,0 +1,2 @@
+# Monitorizarea_La_Distanta_A_Parametrilor_Vitali_Prin_IoT_Si_Aplicatii_Mobile_Licenta
+readme
