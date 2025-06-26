@@ -1,0 +1,109 @@
+#include "DHT.h"
+#define DHTPIN D5    // Pin digital conectat la senzorul DHT
+#define DHTTYPE DHT11   // DHT 11
+
+#include <Wire.h> 
+#include <LiquidCrystal_I2C.h>
+#include <SoftwareSerial.h>
+SoftwareSerial bt(D7, D6); // RX, TX
+// Set the LCD address to 0x27 for a 16 chars and 2 line display
+LiquidCrystal_I2C lcd(0x27, 20, 4);
+DHT dht(DHTPIN, DHTTYPE);
+
+
+#include <Wire.h>
+#include "MAX30100_PulseOximeter.h"
+
+#define PERIOADA_RAPORTARE_MS     1000
+PulseOximeter pox;
+#define RT0 10000   // Ω
+#define B 3977      // K
+float a=A0;
+
+#define VCC 5   //Supply voltage
+#define R 10000  //R=10KΩ
+
+//Variables
+float RT, VR, ln, Temp, T0, Read;
+uint32_t tsUltimRaport = 0;
+void setup()
+{
+    Serial.begin(115200);
+  lcd.begin();
+
+  // Turn on the blacklight and print a message.
+  lcd.backlight();
+    dht.begin();
+  bt.begin(9600);
+  if (!pox.begin()) {
+Serial.println("FAILED");
+for(;;);
+} else {
+Serial.println("SUCCESS");
+}
+pox.setIRLedCurrent(MAX30100_LED_CURR_7_6MA);
+ 
+
+      pinMode(A0,INPUT);
+  T0 = 25 + 273.15; 
+}
+
+void loop()
+{
+    pox.update();
+
+    if (millis() - tsUltimRaport > PERIOADA_RAPORTARE_MS) {
+        int ritmCardiac = pox.getHeartRate();
+    
+      
+        float umiditate = dht.readHumidity();
+        float temperatura = dht.readTemperature();
+        Serial.print("Ritm cardiac: ");
+        Serial.print(ritmCardiac);
+        Serial.print(" bpm / SpO2: ");
+        lcd.setCursor(0,0);
+        lcd.print("Puls:");
+        lcd.print(ritmCardiac);
+        lcd.print("BPM");
+        lcd.setCursor(0,1);
+        lcd.print("Spo2:");
+        lcd.print(pox.getSpO2());
+        lcd.setCursor(7,1);
+        lcd.print("%");
+
+        
+  Read = analogRead(A0);              //Acquisition analog value Read
+  Read = (5.00 / 1023.00) * Read;      //Conversion to voltage
+  VR = VCC - Read;
+  RT = Read / (VR / R);               //Resistance of RT
+
+  ln = log(RT / RT0);
+  Temp = (1 / ((ln / B) + (1 / T0))); //Temperature from sensor
+
+  Temp = Temp - 273.15;                 //Conversion to Celsius
+        lcd.setCursor(0,2);
+        lcd.print("T:");
+        lcd.print(temperatura);
+        lcd.print("C  ");
+        lcd.print("H:");
+        lcd.print(umiditate);
+        lcd.print("%");     
+        lcd.setCursor(0,3);
+        lcd.print("TempCorp:");
+        lcd.print(Temp);
+        lcd.print("C"); 
+       bt.print(ritmCardiac); 
+        bt.print(";");
+        bt.print(pox.getSpO2()); 
+        bt.print(";");
+        bt.print(Temp); 
+        bt.print(";");
+        bt.print(temperatura);
+        bt.print(";");
+        bt.print(umiditate); 
+        bt.println(";");
+        Serial.print(pox.getSpO2());
+        Serial.println("%");
+        tsUltimRaport = millis();
+    }
+}
